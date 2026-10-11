@@ -161,7 +161,9 @@ function renderCodeList() {
     container.innerHTML = `<p style="text-align:center;color:#999;padding:30px;">暂无故障码${isAdmin ? '，点击右上角添加' : ''}</p>`;
     return;
   }
-  const sorted = [...brand.codes].sort((a, b) => a.code.localeCompare(b.code));
+  const sorted = [...brand.codes].sort((a, b) =>
+  a.code.localeCompare(b.code, 'zh', { numeric: true, sensitivity: 'base' })
+);
   container.innerHTML = sorted.map(c => `
     <div class="brand-item">
       <div>
