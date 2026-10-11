@@ -501,6 +501,8 @@ function bindEvents() {
 
   document.getElementById('settingsIcon').addEventListener('click', openSettings);
   document.getElementById('settingsBack').onclick = closeSettings;
+  document.getElementById('contentClose').onclick = () =>
+    document.getElementById('contentModal').classList.remove('show');
 
   document.getElementById('fontMinus').onclick = () => changeFontScale(-1);
   document.getElementById('fontPlus').onclick = () => changeFontScale(1);
