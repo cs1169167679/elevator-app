@@ -1,5 +1,6 @@
 let isAdmin = false;
 let currentTab = 'brands';
+let currentBrandId = null;
 const ADMIN_PASSWORD = '101111';
 const DELETE_PASSWORD = '8888';
 
@@ -34,8 +35,10 @@ function verifyAdminPassword() {
     document.getElementById('lockIcon').textContent = '🔓';
     document.getElementById('adminModal').classList.remove('show');
     document.getElementById('addBtn').style.display = 'block';
+    document.getElementById('addCodeBtn').style.display = 'block';
     renderBrands();
     renderContentArea();
+    if (currentBrandId) renderCodeList();
     alert('✅ 管理员模式已开启');
   } else {
     alert('❌ 密码错误');
@@ -128,6 +131,86 @@ function renderContentArea() {
   `).join('');
 }
 
+/* ---------- 品牌详情 & 故障码管理 ---------- */
+function openBrand(id) {
+  currentBrandId = id;
+  const brand = window.appData.brands.find(b => b.id === id);
+  if (!brand) return;
+  document.getElementById('mainPage').style.display = 'none';
+  document.getElementById('bottomNav').style.display = 'none';
+  document.getElementById('brandDetail').style.display = 'block';
+  document.getElementById('detailBrandName').textContent = brand.name;
+  document.getElementById('addCodeBtn').style.display = isAdmin ? 'block' : 'none';
+  renderCodeList();
+}
+
+function closeBrand() {
+  currentBrandId = null;
+  document.getElementById('mainPage').style.display = 'block';
+  document.getElementById('bottomNav').style.display = 'flex';
+  document.getElementById('brandDetail').style.display = 'none';
+  renderBrands();
+  renderContentArea();
+}
+
+function renderCodeList() {
+  const brand = window.appData.brands.find(b => b.id === currentBrandId);
+  if (!brand) return;
+  const container = document.getElementById('codeList');
+  if (brand.codes.length === 0) {
+    container.innerHTML = `<p style="text-align:center;color:#999;padding:30px;">暂无故障码${isAdmin ? '，点击右上角添加' : ''}</p>`;
+    return;
+  }
+  const sorted = [...brand.codes].sort((a, b) => a.code.localeCompare(b.code));
+  container.innerHTML = sorted.map(c => `
+    <div class="brand-item">
+      <div>
+        <span style="font-weight:600;color:#d93025;">${c.code}</span>
+        <p style="font-size:14px;color:#555;margin-top:4px;">${c.definition}</p>
+      </div>
+      ${isAdmin ? `<div class="item-actions">
+        <button class="btn-edit" onclick="editCode('${c.id}')">✏️</button>
+        <button class="btn-delete" onclick="deleteCode('${c.id}')">🗑️</button>
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+function addCode() {
+  const brand = window.appData.brands.find(b => b.id === currentBrandId);
+  if (!brand) return;
+  const code = prompt('请输入故障码（如 E01）：');
+  if (!code) return;
+  const definition = prompt('请输入故障定义：') || '';
+  brand.codes.push({ id: Date.now().toString(), code, definition });
+  saveData();
+  renderCodeList();
+}
+
+function editCode(codeId) {
+  const brand = window.appData.brands.find(b => b.id === currentBrandId);
+  const c = brand.codes.find(x => x.id === codeId);
+  if (!c) return;
+  const newCode = prompt('修改故障码：', c.code);
+  if (newCode === null) return;
+  const newDef = prompt('修改故障定义：', c.definition);
+  if (newDef === null) return;
+  c.code = newCode;
+  c.definition = newDef;
+  saveData();
+  renderCodeList();
+}
+
+function deleteCode(codeId) {
+  confirmDelete(() => {
+    const brand = window.appData.brands.find(b => b.id === currentBrandId);
+    brand.codes = brand.codes.filter(c => c.id !== codeId);
+    saveData();
+    renderCodeList();
+  });
+}
+
+/* ---------- 品牌增删改 ---------- */
 function deleteBrand(id) {
   confirmDelete(() => {
     window.appData.brands = window.appData.brands.filter(b => b.id !== id);
@@ -163,13 +246,7 @@ function editBrand(id) {
   }
 }
 
-function openBrand(id) {
-  const brand = window.appData.brands.find(b => b.id === id);
-  if (!brand) return;
-  const codesStr = brand.codes.map(c => `${c.code} = ${c.definition}`).join('\n') || '暂无故障码';
-  alert(`【${brand.name}】\n\n${codesStr}`);
-}
-
+/* ---------- Excel 导入导出 ---------- */
 function exportExcel() {
   const rows = [];
   window.appData.brands.forEach(b => {
@@ -231,16 +308,13 @@ function importExcel(file) {
   reader.readAsArrayBuffer(file);
 }
 
+/* ---------- 事件绑定 ---------- */
 function bindEvents() {
   bindSearch();
   
-  // 点击锁图标触发管理员密码验证（移除了长按逻辑）
   document.getElementById('lockIcon').addEventListener('click', () => {
-    if (isAdmin) {
-      alert('🔓 当前已是管理员模式');
-    } else {
-      showAdminModal();
-    }
+    if (isAdmin) alert('🔓 当前已是管理员模式');
+    else showAdminModal();
   });
 
   document.getElementById('adminConfirm').onclick = verifyAdminPassword;
@@ -261,6 +335,9 @@ function bindEvents() {
       renderContentArea();
     }
   };
+  
+  document.getElementById('backBtn').onclick = closeBrand;
+  document.getElementById('addCodeBtn').onclick = addCode;
   
   document.querySelectorAll('.bottom-nav button').forEach(btn => {
     btn.onclick = () => switchTab(btn.dataset.tab);
