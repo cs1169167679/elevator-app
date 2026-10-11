@@ -1,6 +1,5 @@
 let isAdmin = false;
 let currentTab = 'brands';
-let touchTimer = null;
 const ADMIN_PASSWORD = '101111';
 const DELETE_PASSWORD = '8888';
 
@@ -21,21 +20,6 @@ async function loadData() {
 
 async function saveData() {
   await localforage.setItem('elevatorData', window.appData);
-}
-
-function bindHeaderLongPress() {
-  const header = document.getElementById('appHeader');
-  const start = () => {
-    if (isAdmin) return;
-    touchTimer = setTimeout(showAdminModal, 10000);
-  };
-  const cancel = () => { if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; } };
-  header.addEventListener('touchstart', start);
-  header.addEventListener('touchend', cancel);
-  header.addEventListener('touchcancel', cancel);
-  header.addEventListener('mousedown', start);
-  header.addEventListener('mouseup', cancel);
-  header.addEventListener('mouseleave', cancel);
 }
 
 function showAdminModal() {
@@ -88,7 +72,7 @@ function renderBrands(filter = '') {
     .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
   if (brands.length === 0) {
     container.innerHTML = '<p style="text-align:center;color:#999;padding:30px;">暂无品牌，' +
-      (isAdmin ? '点击右下角 + 添加' : '长按顶部标题10秒解锁编辑') + '</p>';
+      (isAdmin ? '点击右下角 + 添加' : '点击右上角锁图标解锁编辑') + '</p>';
     return;
   }
   container.innerHTML = brands.map(b => `
@@ -248,11 +232,21 @@ function importExcel(file) {
 }
 
 function bindEvents() {
-  bindHeaderLongPress();
   bindSearch();
+  
+  // 点击锁图标触发管理员密码验证（移除了长按逻辑）
+  document.getElementById('lockIcon').addEventListener('click', () => {
+    if (isAdmin) {
+      alert('🔓 当前已是管理员模式');
+    } else {
+      showAdminModal();
+    }
+  });
+
   document.getElementById('adminConfirm').onclick = verifyAdminPassword;
   document.getElementById('adminCancel').onclick = () =>
     document.getElementById('adminModal').classList.remove('show');
+    
   document.getElementById('addBtn').onclick = () => {
     if (currentTab === 'brands') addBrand();
     else {
@@ -267,6 +261,7 @@ function bindEvents() {
       renderContentArea();
     }
   };
+  
   document.querySelectorAll('.bottom-nav button').forEach(btn => {
     btn.onclick = () => switchTab(btn.dataset.tab);
   });
