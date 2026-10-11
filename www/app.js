@@ -25,9 +25,7 @@ async function loadData() {
   if (!raw) {
     raw = { brands: [], favorites: [], experiences: [], debug: [] };
   }
-  // 深拷贝，防止引用问题
   window.appData = JSON.parse(JSON.stringify(raw));
-  // 确保所有数组都存在
   if (!window.appData.brands) window.appData.brands = [];
   if (!window.appData.favorites) window.appData.favorites = [];
   if (!window.appData.experiences) window.appData.experiences = [];
@@ -128,8 +126,8 @@ function renderBrands(filter = '') {
     <div class="brand-item" data-id="${b.id}">
       <span>${b.name} <small style="color:#999;">(${b.codes.length}个故障码)</small></span>
       <div class="item-actions">
-        ${isAdmin ? `<button class="btn-edit" onclick="editBrand('${b.id}')">✏️</button>
-                     <button class="btn-delete" onclick="deleteBrand('${b.id}')">🗑️</button>` : ''}
+        ${isAdmin ? `<button class="btn-edit" onclick="event.stopPropagation(); editBrand('${b.id}')">✏️</button>
+                     <button class="btn-delete" onclick="event.stopPropagation(); deleteBrand('${b.id}')">🗑️</button>` : ''}
         <span class="arrow">›</span>
       </div>
     </div>
@@ -157,6 +155,7 @@ function switchTab(tab) {
   renderContentArea();
 }
 
+/* ---------- 收藏/经验/调试 列表 ---------- */
 function renderContentArea() {
   const area = document.getElementById('contentArea');
   if (currentTab === 'brands') { area.innerHTML = ''; return; }
@@ -184,6 +183,7 @@ function renderContentArea() {
     });
   });
 }
+
 function openContentDetail(key, id) {
   const item = window.appData[key].find(i => i.id === id);
   if (!item) return;
@@ -211,6 +211,7 @@ function openContentDetail(key, id) {
 
   document.getElementById('contentModal').classList.add('show');
 }
+
 /* ---------- 品牌详情 ---------- */
 function openBrand(id) {
   currentBrandId = id;
@@ -395,7 +396,7 @@ async function exportExcel() {
   }
 }
 
-/* ---------- Excel 导入（合并模式，带前后对比） ---------- */
+/* ---------- Excel 导入（合并模式） ---------- */
 function importExcel(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -404,7 +405,6 @@ function importExcel(file) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws);
 
-      // 记录导入前的数据量
       const beforeBrands = window.appData.brands.length;
       const beforeCodes = window.appData.brands.reduce((s, b) => s + b.codes.length, 0);
 
@@ -422,7 +422,6 @@ function importExcel(file) {
 
         if (type === '品牌') {
           if (!bName) return;
-          // 找已有品牌（trim 后比较）
           let brand = window.appData.brands.find(b => (b.name || '').trim() === bName);
           if (!brand) {
             brand = { id: Date.now().toString() + Math.random(), name: bName, codes: [] };
@@ -430,7 +429,6 @@ function importExcel(file) {
             addedBrands++;
           }
           if (code) {
-            // 找已有故障码（trim 后比较）
             const existing = brand.codes.find(c => (c.code || '').trim() === code);
             if (existing) {
               if ((existing.definition || '').trim() !== definition) {
@@ -501,8 +499,6 @@ function bindEvents() {
 
   document.getElementById('settingsIcon').addEventListener('click', openSettings);
   document.getElementById('settingsBack').onclick = closeSettings;
-  document.getElementById('contentClose').onclick = () =>
-    document.getElementById('contentModal').classList.remove('show');
 
   document.getElementById('fontMinus').onclick = () => changeFontScale(-1);
   document.getElementById('fontPlus').onclick = () => changeFontScale(1);
@@ -522,6 +518,9 @@ function bindEvents() {
   document.getElementById('adminConfirm').onclick = verifyAdminPassword;
   document.getElementById('adminCancel').onclick = () =>
     document.getElementById('adminModal').classList.remove('show');
+
+  document.getElementById('contentClose').onclick = () =>
+    document.getElementById('contentModal').classList.remove('show');
 
   document.getElementById('addBtn').onclick = () => {
     if (currentTab === 'brands') addBrand();
