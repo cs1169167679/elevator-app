@@ -1,11 +1,21 @@
 let isAdmin = false;
 let currentTab = 'brands';
 let currentBrandId = null;
+let fontScale = 1;
 const ADMIN_PASSWORD = '101111';
 const DELETE_PASSWORD = '8888';
+const FONT_STEPS = [
+  { scale: 0.85, label: '超小' },
+  { scale: 0.95, label: '小' },
+  { scale: 1.00, label: '标准' },
+  { scale: 1.15, label: '大' },
+  { scale: 1.30, label: '超大' },
+  { scale: 1.45, label: '特大' }
+];
 
 async function init() {
   await loadData();
+  await loadFontScale();
   renderBrands();
   bindEvents();
 }
@@ -23,6 +33,36 @@ async function saveData() {
   await localforage.setItem('elevatorData', window.appData);
 }
 
+/* ---------- 字体大小 ---------- */
+async function loadFontScale() {
+  const saved = await localforage.getItem('fontScale');
+  if (saved) fontScale = saved;
+  applyFontScale();
+}
+
+function applyFontScale() {
+  document.documentElement.style.fontSize = (16 * fontScale) + 'px';
+  const step = FONT_STEPS.reduce((prev, cur) =>
+    Math.abs(cur.scale - fontScale) < Math.abs(prev.scale - fontScale) ? cur : prev
+  );
+  const el = document.getElementById('fontLabel');
+  if (el) el.textContent = step.label;
+}
+
+async function changeFontScale(delta) {
+  const idx = FONT_STEPS.findIndex(s => s.scale === fontScale);
+  let newIdx;
+  if (idx === -1) {
+    newIdx = delta > 0 ? 3 : 2;
+  } else {
+    newIdx = Math.max(0, Math.min(FONT_STEPS.length - 1, idx + delta));
+  }
+  fontScale = FONT_STEPS[newIdx].scale;
+  applyFontScale();
+  await localforage.setItem('fontScale', fontScale);
+}
+
+/* ---------- 管理员 ---------- */
 function showAdminModal() {
   document.getElementById('adminModal').classList.add('show');
   document.getElementById('adminPassword').value = '';
@@ -67,12 +107,13 @@ function confirmDelete(callback) {
   newCancel.onclick = () => modal.classList.remove('show');
 }
 
+/* ---------- 品牌列表 ---------- */
 function renderBrands(filter = '') {
   const container = document.getElementById('brandList');
   const brands = window.appData.brands
     .filter(b => !filter || b.name.includes(filter) ||
       b.codes.some(c => c.code.includes(filter) || c.definition.includes(filter)))
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    .sort((a, b) => a.name.localeCompare(b.name, 'zh', { numeric: true, sensitivity: 'base' }));
   if (brands.length === 0) {
     container.innerHTML = '<p style="text-align:center;color:#999;padding:30px;">暂无品牌，' +
       (isAdmin ? '点击右下角 + 添加' : '点击右上角锁图标解锁编辑') + '</p>';
@@ -116,7 +157,8 @@ function renderContentArea() {
   if (currentTab === 'brands') { area.innerHTML = ''; return; }
   const keyMap = { favorites: 'favorites', experience: 'experiences', debug: 'debug' };
   const key = keyMap[currentTab];
-  const items = (window.appData[key] || []).sort((a, b) => a.title.localeCompare(b.title, 'zh'));
+  const items = (window.appData[key] || []).sort((a, b) =>
+    a.title.localeCompare(b.title, 'zh', { numeric: true, sensitivity: 'base' }));
   if (items.length === 0) {
     area.innerHTML = `<p style="text-align:center;color:#999;padding:30px;">暂无内容</p>`;
     return;
@@ -131,13 +173,14 @@ function renderContentArea() {
   `).join('');
 }
 
-/* ---------- 品牌详情 & 故障码管理 ---------- */
+/* ---------- 品牌详情 ---------- */
 function openBrand(id) {
   currentBrandId = id;
   const brand = window.appData.brands.find(b => b.id === id);
   if (!brand) return;
   document.getElementById('mainPage').style.display = 'none';
   document.getElementById('bottomNav').style.display = 'none';
+  document.getElementById('settingsPage').style.display = 'none';
   document.getElementById('brandDetail').style.display = 'block';
   document.getElementById('detailBrandName').textContent = brand.name;
   document.getElementById('addCodeBtn').style.display = isAdmin ? 'block' : 'none';
@@ -162,13 +205,13 @@ function renderCodeList() {
     return;
   }
   const sorted = [...brand.codes].sort((a, b) =>
-  a.code.localeCompare(b.code, 'zh', { numeric: true, sensitivity: 'base' })
-);
+    a.code.localeCompare(b.code, 'zh', { numeric: true, sensitivity: 'base' })
+  );
   container.innerHTML = sorted.map(c => `
     <div class="brand-item">
       <div>
         <span style="font-weight:600;color:#d93025;">${c.code}</span>
-        <p style="font-size:14px;color:#555;margin-top:4px;">${c.definition}</p>
+        <p style="font-size:0.875rem;color:#555;margin-top:4px;">${c.definition}</p>
       </div>
       ${isAdmin ? `<div class="item-actions">
         <button class="btn-edit" onclick="editCode('${c.id}')">✏️</button>
@@ -212,7 +255,6 @@ function deleteCode(codeId) {
   });
 }
 
-/* ---------- 品牌增删改 ---------- */
 function deleteBrand(id) {
   confirmDelete(() => {
     window.appData.brands = window.appData.brands.filter(b => b.id !== id);
@@ -248,6 +290,20 @@ function editBrand(id) {
   }
 }
 
+/* ---------- 设置页 ---------- */
+function openSettings() {
+  document.getElementById('mainPage').style.display = 'none';
+  document.getElementById('bottomNav').style.display = 'none';
+  document.getElementById('brandDetail').style.display = 'none';
+  document.getElementById('settingsPage').style.display = 'block';
+}
+
+function closeSettings() {
+  document.getElementById('settingsPage').style.display = 'none';
+  document.getElementById('mainPage').style.display = 'block';
+  document.getElementById('bottomNav').style.display = 'flex';
+}
+
 /* ---------- Excel 导入导出 ---------- */
 function exportExcel() {
   const rows = [];
@@ -268,44 +324,50 @@ function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '电梯维修数据');
-  XLSX.writeFile(wb, '电梯维修助手_数据备份.xlsx');
+  const date = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `电梯维修助手_${date}.xlsx`);
 }
 
 function importExcel(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
-    const wb = XLSX.read(e.target.result, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws);
-    const imported = { brands: [], favorites: [], experiences: [], debug: [] };
-    const brandMap = {};
-    rows.forEach(row => {
-      if (row['类型'] === '品牌') {
-        const bName = row['品牌'];
-        if (!brandMap[bName]) {
-          brandMap[bName] = { id: Date.now().toString() + Math.random(), name: bName, codes: [] };
-          imported.brands.push(brandMap[bName]);
-        }
-        if (row['故障码']) {
-          brandMap[bName].codes.push({
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws);
+      const imported = { brands: [], favorites: [], experiences: [], debug: [] };
+      const brandMap = {};
+      rows.forEach(row => {
+        if (row['类型'] === '品牌') {
+          const bName = row['品牌'];
+          if (!bName) return;
+          if (!brandMap[bName]) {
+            brandMap[bName] = { id: Date.now().toString() + Math.random(), name: bName, codes: [] };
+            imported.brands.push(brandMap[bName]);
+          }
+          if (row['故障码']) {
+            brandMap[bName].codes.push({
+              id: Date.now().toString() + Math.random(),
+              code: String(row['故障码']),
+              definition: row['定义'] || ''
+            });
+          }
+        } else if (['favorites', 'experiences', 'debug'].includes(row['类型'])) {
+          imported[row['类型']].push({
             id: Date.now().toString() + Math.random(),
-            code: String(row['故障码']),
-            definition: row['定义'] || ''
+            title: row['品牌'],
+            content: row['定义'] || ''
           });
         }
-      } else if (['favorites', 'experiences', 'debug'].includes(row['类型'])) {
-        imported[row['类型']].push({
-          id: Date.now().toString() + Math.random(),
-          title: row['品牌'],
-          content: row['定义'] || ''
-        });
-      }
-    });
-    window.appData = imported;
-    saveData();
-    renderBrands();
-    renderContentArea();
-    alert('✅ 导入完成');
+      });
+      window.appData = imported;
+      saveData();
+      renderBrands();
+      renderContentArea();
+      alert('✅ 导入完成');
+    } catch (err) {
+      alert('❌ 导入失败：' + err.message);
+    }
   };
   reader.readAsArrayBuffer(file);
 }
@@ -313,16 +375,34 @@ function importExcel(file) {
 /* ---------- 事件绑定 ---------- */
 function bindEvents() {
   bindSearch();
-  
+
   document.getElementById('lockIcon').addEventListener('click', () => {
     if (isAdmin) alert('🔓 当前已是管理员模式');
     else showAdminModal();
   });
 
+  document.getElementById('settingsIcon').addEventListener('click', openSettings);
+  document.getElementById('settingsBack').onclick = closeSettings;
+
+  document.getElementById('fontMinus').onclick = () => changeFontScale(-1);
+  document.getElementById('fontPlus').onclick = () => changeFontScale(1);
+
+  document.getElementById('exportBtn').onclick = exportExcel;
+  document.getElementById('importBtn').onclick = () =>
+    document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    confirmDelete(() => {
+      importExcel(file);
+      e.target.value = '';
+    });
+  };
+
   document.getElementById('adminConfirm').onclick = verifyAdminPassword;
   document.getElementById('adminCancel').onclick = () =>
     document.getElementById('adminModal').classList.remove('show');
-    
+
   document.getElementById('addBtn').onclick = () => {
     if (currentTab === 'brands') addBrand();
     else {
@@ -337,10 +417,10 @@ function bindEvents() {
       renderContentArea();
     }
   };
-  
+
   document.getElementById('backBtn').onclick = closeBrand;
   document.getElementById('addCodeBtn').onclick = addCode;
-  
+
   document.querySelectorAll('.bottom-nav button').forEach(btn => {
     btn.onclick = () => switchTab(btn.dataset.tab);
   });
