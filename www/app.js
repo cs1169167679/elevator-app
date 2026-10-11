@@ -169,13 +169,20 @@ function renderContentArea() {
     return;
   }
   area.innerHTML = items.map(item => `
-    <div class="brand-item">
+    <div class="brand-item" data-id="${item.id}">
       <span>${item.title}</span>
-      ${isAdmin ? `<div class="item-actions">
-        <button class="btn-delete" onclick="deleteContent('${key}','${item.id}')">🗑️</button>
-      </div>` : ''}
+      <div class="item-actions">
+        ${isAdmin ? `<button class="btn-delete" onclick="event.stopPropagation(); deleteContent('${key}','${item.id}')">🗑️</button>` : ''}
+        <span class="arrow">›</span>
+      </div>
     </div>
   `).join('');
+  area.querySelectorAll('.brand-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.item-actions')) return;
+      openContentDetail(key, el.dataset.id);
+    });
+  });
 }
 
 /* ---------- 品牌详情 ---------- */
