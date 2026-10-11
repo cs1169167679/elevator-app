@@ -11,7 +11,10 @@
   <div id="mainPage">
     <header id="appHeader">
       <h1>电梯维修助手</h1>
-      <span id="lockIcon">🔒</span>
+      <div class="header-icons">
+        <span id="settingsIcon">⚙️</span>
+        <span id="lockIcon">🔒</span>
+      </div>
     </header>
 
     <div class="search-bar">
@@ -31,6 +34,33 @@
       <button id="addCodeBtn" class="btn-add-code" style="display:none;">+ 添加</button>
     </div>
     <div id="codeList" class="section"></div>
+  </div>
+
+  <div id="settingsPage" style="display:none;">
+    <div class="detail-header">
+      <button id="settingsBack">← 返回</button>
+      <h2>设置</h2>
+      <span style="width:60px;"></span>
+    </div>
+
+    <div class="settings-body">
+      <div class="setting-card">
+        <div class="setting-title">字体大小</div>
+        <div class="font-control">
+          <button id="fontMinus">A-</button>
+          <span id="fontLabel">标准</span>
+          <button id="fontPlus">A+</button>
+        </div>
+      </div>
+
+      <div class="setting-card">
+        <div class="setting-title">数据备份与恢复</div>
+        <button class="setting-btn" id="exportBtn">📤 导出全部数据到 Excel</button>
+        <button class="setting-btn" id="importBtn">📥 从 Excel 导入数据</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
+        <p class="setting-tip">提示：导入会覆盖当前所有数据，建议先导出备份。</p>
+      </div>
+    </div>
   </div>
 
   <nav class="bottom-nav" id="bottomNav">
