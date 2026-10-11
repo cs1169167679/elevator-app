@@ -96,5 +96,15 @@
   <script src="libs/localforage.min.js"></script>
   <script src="libs/xlsx.full.min.js"></script>
   <script src="app.js"></script>
+  <div id="contentModal" class="modal">
+    <div class="modal-content">
+      <h3 id="contentTitle"></h3>
+      <p id="contentBody" style="white-space:pre-wrap; margin:12px 0; max-height:50vh; overflow-y:auto; color:#555; line-height:1.6;"></p>
+      <div class="modal-btns">
+        <button id="contentEditBtn" style="display:none;">✏️ 编辑</button>
+        <button id="contentClose" style="background:#eee; color:#333;">关闭</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
