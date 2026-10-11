@@ -305,7 +305,7 @@ function closeSettings() {
 }
 
 /* ---------- Excel 导入导出 ---------- */
-function exportExcel() {
+async function exportExcel() {
   const rows = [];
   window.appData.brands.forEach(b => {
     if (b.codes.length === 0) {
@@ -321,13 +321,45 @@ function exportExcel() {
       rows.push({ 类型: key, 品牌: item.title, 故障码: '', 定义: item.content });
     });
   });
+
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '电梯维修数据');
-  const date = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `电梯维修助手_${date}.xlsx`);
-}
 
+  const date = new Date().toISOString().slice(0, 10);
+  const fileName = `电梯维修助手_${date}.xlsx`;
+
+  try {
+    // 生成 base64 数据
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+
+    // 判断是否在 Capacitor 环境（App 里）
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+      const result = await window.Capacitor.Plugins.Filesystem.writeFile({
+        path: fileName,
+        data: wbout,
+        directory: 'CACHE'
+      });
+
+      // 调起系统分享
+      if (window.Capacitor.Plugins.Share) {
+        await window.Capacitor.Plugins.Share.share({
+          title: '电梯维修助手 - 数据导出',
+          text: '数据备份文件',
+          files: [result.uri]
+        });
+      } else {
+        alert('文件已保存到：' + result.uri);
+      }
+    } else {
+      // 网页环境回退（浏览器打开时可用）
+      XLSX.writeFile(wb, fileName);
+    }
+  } catch (err) {
+    alert('❌ 导出失败：' + (err.message || err));
+    console.error(err);
+  }
+}
 function importExcel(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
