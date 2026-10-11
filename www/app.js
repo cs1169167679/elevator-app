@@ -184,7 +184,33 @@ function renderContentArea() {
     });
   });
 }
+function openContentDetail(key, id) {
+  const item = window.appData[key].find(i => i.id === id);
+  if (!item) return;
 
+  document.getElementById('contentTitle').textContent = item.title;
+  document.getElementById('contentBody').textContent = item.content || '（无内容）';
+
+  const editBtn = document.getElementById('contentEditBtn');
+  if (isAdmin) {
+    editBtn.style.display = 'block';
+    editBtn.onclick = () => {
+      const newTitle = prompt('修改标题：', item.title);
+      if (newTitle === null) return;
+      const newContent = prompt('修改内容：', item.content);
+      if (newContent === null) return;
+      item.title = newTitle;
+      item.content = newContent;
+      saveData();
+      document.getElementById('contentModal').classList.remove('show');
+      renderContentArea();
+    };
+  } else {
+    editBtn.style.display = 'none';
+  }
+
+  document.getElementById('contentModal').classList.add('show');
+}
 /* ---------- 品牌详情 ---------- */
 function openBrand(id) {
   currentBrandId = id;
