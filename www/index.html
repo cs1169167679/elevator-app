@@ -8,26 +8,37 @@
 </head>
 <body>
 
-  <header id="appHeader">
-    <h1>电梯维修助手</h1>
-    <span id="lockIcon">🔒</span>
-  </header>
+  <div id="mainPage">
+    <header id="appHeader">
+      <h1>电梯维修助手</h1>
+      <span id="lockIcon">🔒</span>
+    </header>
 
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="搜索品牌或故障码...">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="搜索品牌或故障码...">
+    </div>
+
+    <section id="brandList" class="section"></section>
+    <section id="contentArea" class="section"></section>
+
+    <button id="addBtn" class="fab" style="display:none;">+</button>
   </div>
 
-  <section id="brandList" class="section"></section>
-  <section id="contentArea" class="section"></section>
+  <div id="brandDetail" style="display:none;">
+    <div class="detail-header">
+      <button id="backBtn">← 返回</button>
+      <h2 id="detailBrandName"></h2>
+      <button id="addCodeBtn" class="btn-add-code" style="display:none;">+ 添加</button>
+    </div>
+    <div id="codeList" class="section"></div>
+  </div>
 
-  <nav class="bottom-nav">
+  <nav class="bottom-nav" id="bottomNav">
     <button data-tab="brands" class="active">品牌</button>
     <button data-tab="favorites">⭐收藏</button>
     <button data-tab="experience">📝经验</button>
     <button data-tab="debug">🔧调试</button>
   </nav>
-
-  <button id="addBtn" class="fab" style="display:none;">+</button>
 
   <div id="adminModal" class="modal">
     <div class="modal-content">
