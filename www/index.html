@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>电梯维修助手</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header id="appHeader">
+    <h1>电梯维修助手</h1>
+    <span id="lockIcon">🔒</span>
+  </header>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="搜索品牌或故障码...">
+  </div>
+
+  <section id="brandList" class="section"></section>
+  <section id="contentArea" class="section"></section>
+
+  <nav class="bottom-nav">
+    <button data-tab="brands" class="active">品牌</button>
+    <button data-tab="favorites">⭐收藏</button>
+    <button data-tab="experience">📝经验</button>
+    <button data-tab="debug">🔧调试</button>
+  </nav>
+
+  <button id="addBtn" class="fab" style="display:none;">+</button>
+
+  <div id="adminModal" class="modal">
+    <div class="modal-content">
+      <h3>管理员验证</h3>
+      <input type="password" id="adminPassword" placeholder="请输入密码" inputmode="numeric">
+      <div class="modal-btns">
+        <button id="adminConfirm">确认</button>
+        <button id="adminCancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteModal" class="modal">
+    <div class="modal-content">
+      <h3>⚠️ 确认删除</h3>
+      <p>此操作不可撤销，请输入密码：</p>
+      <input type="password" id="deletePassword" placeholder="请输入删除密码" inputmode="numeric">
+      <div class="modal-btns">
+        <button id="deleteConfirm">确认删除</button>
+        <button id="deleteCancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="libs/localforage.min.js"></script>
+  <script src="libs/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

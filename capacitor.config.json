@@ -1,0 +1,8 @@
+{
+  "appId": "com.myname.elevator",
+  "appName": "电梯维修助手",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
