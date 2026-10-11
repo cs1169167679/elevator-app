@@ -304,7 +304,7 @@ function closeSettings() {
   document.getElementById('bottomNav').style.display = 'flex';
 }
 
-/* ---------- Excel 导入导出 ---------- */
+/* ---------- Excel 导出（用 Capacitor 插件） ---------- */
 async function exportExcel() {
   const rows = [];
   window.appData.brands.forEach(b => {
@@ -330,10 +330,8 @@ async function exportExcel() {
   const fileName = `电梯维修助手_${date}.xlsx`;
 
   try {
-    // 生成 base64 数据
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
 
-    // 判断是否在 Capacitor 环境（App 里）
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
       const result = await window.Capacitor.Plugins.Filesystem.writeFile({
         path: fileName,
@@ -341,7 +339,6 @@ async function exportExcel() {
         directory: 'CACHE'
       });
 
-      // 调起系统分享
       if (window.Capacitor.Plugins.Share) {
         await window.Capacitor.Plugins.Share.share({
           title: '电梯维修助手 - 数据导出',
@@ -352,7 +349,6 @@ async function exportExcel() {
         alert('文件已保存到：' + result.uri);
       }
     } else {
-      // 网页环境回退（浏览器打开时可用）
       XLSX.writeFile(wb, fileName);
     }
   } catch (err) {
@@ -360,6 +356,8 @@ async function exportExcel() {
     console.error(err);
   }
 }
+
+/* ---------- Excel 导入（合并模式） ---------- */
 function importExcel(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -367,36 +365,74 @@ function importExcel(file) {
       const wb = XLSX.read(e.target.result, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws);
-      const imported = { brands: [], favorites: [], experiences: [], debug: [] };
-      const brandMap = {};
+
+      let addedBrands = 0;
+      let addedCodes = 0;
+      let updatedCodes = 0;
+      let addedItems = 0;
+      let updatedItems = 0;
+
       rows.forEach(row => {
-        if (row['类型'] === '品牌') {
-          const bName = row['品牌'];
+        const type = row['类型'];
+        const bName = row['品牌'];
+        const code = row['故障码'] ? String(row['故障码']).trim() : '';
+        const definition = row['定义'] || '';
+
+        if (type === '品牌') {
           if (!bName) return;
-          if (!brandMap[bName]) {
-            brandMap[bName] = { id: Date.now().toString() + Math.random(), name: bName, codes: [] };
-            imported.brands.push(brandMap[bName]);
+          let brand = window.appData.brands.find(b => b.name === bName);
+          if (!brand) {
+            brand = { id: Date.now().toString() + Math.random(), name: bName, codes: [] };
+            window.appData.brands.push(brand);
+            addedBrands++;
           }
-          if (row['故障码']) {
-            brandMap[bName].codes.push({
+          if (code) {
+            const existing = brand.codes.find(c => c.code === code);
+            if (existing) {
+              if (existing.definition !== definition) {
+                existing.definition = definition;
+                updatedCodes++;
+              }
+            } else {
+              brand.codes.push({
+                id: Date.now().toString() + Math.random(),
+                code,
+                definition
+              });
+              addedCodes++;
+            }
+          }
+        } else if (['favorites', 'experiences', 'debug'].includes(type)) {
+          if (!bName) return;
+          const existing = window.appData[type].find(i => i.title === bName);
+          if (existing) {
+            if (existing.content !== definition) {
+              existing.content = definition;
+              updatedItems++;
+            }
+          } else {
+            window.appData[type].push({
               id: Date.now().toString() + Math.random(),
-              code: String(row['故障码']),
-              definition: row['定义'] || ''
+              title: bName,
+              content: definition
             });
+            addedItems++;
           }
-        } else if (['favorites', 'experiences', 'debug'].includes(row['类型'])) {
-          imported[row['类型']].push({
-            id: Date.now().toString() + Math.random(),
-            title: row['品牌'],
-            content: row['定义'] || ''
-          });
         }
       });
-      window.appData = imported;
+
       saveData();
       renderBrands();
       renderContentArea();
-      alert('✅ 导入完成');
+
+      alert(
+        `✅ 导入完成（合并模式）\n\n` +
+        `新增品牌：${addedBrands} 个\n` +
+        `新增故障码：${addedCodes} 条\n` +
+        `更新故障码：${updatedCodes} 条\n` +
+        `新增收藏/经验/调试：${addedItems} 条\n` +
+        `更新收藏/经验/调试：${updatedItems} 条`
+      );
     } catch (err) {
       alert('❌ 导入失败：' + err.message);
     }
@@ -425,10 +461,10 @@ function bindEvents() {
   document.getElementById('importFile').onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    confirmDelete(() => {
+    if (confirm('导入将与现有数据合并（同品牌同故障码以新文件为准），是否继续？')) {
       importExcel(file);
-      e.target.value = '';
-    });
+    }
+    e.target.value = '';
   };
 
   document.getElementById('adminConfirm').onclick = verifyAdminPassword;
