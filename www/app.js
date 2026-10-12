@@ -2,6 +2,7 @@ let isAdmin = false;
 let currentTab = 'brands';
 let currentBrandId = null;
 let fontScale = 1;
+let appName = '电梯维修助手';
 const ADMIN_PASSWORD = '101111';
 const DELETE_PASSWORD = '8888';
 const FONT_STEPS = [
@@ -12,19 +13,23 @@ const FONT_STEPS = [
   { scale: 1.30, label: '超大' },
   { scale: 1.45, label: '特大' }
 ];
+const AVATAR_COLORS = [
+  '#1a73e8', '#e8710a', '#0f9d58', '#d93025',
+  '#9334e6', '#1e8e3e', '#c5221f', '#1967d2',
+  '#00897b', '#5e35b1'
+];
 
 async function init() {
   await loadData();
   await loadFontScale();
+  await loadAppName();
   renderBrands();
   bindEvents();
 }
 
 async function loadData() {
   let raw = await localforage.getItem('elevatorData');
-  if (!raw) {
-    raw = { brands: [], favorites: [], experiences: [], debug: [] };
-  }
+  if (!raw) raw = { brands: [], favorites: [], experiences: [], debug: [] };
   window.appData = JSON.parse(JSON.stringify(raw));
   if (!window.appData.brands) window.appData.brands = [];
   if (!window.appData.favorites) window.appData.favorites = [];
@@ -34,6 +39,57 @@ async function loadData() {
 
 async function saveData() {
   await localforage.setItem('elevatorData', window.appData);
+}
+
+/* ---------- 自定义输入弹窗（替代 prompt） ---------- */
+function showInput(title, placeholder, defaultValue = '') {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('inputModal');
+    document.getElementById('inputTitle').textContent = title;
+    const field = document.getElementById('inputField');
+    field.placeholder = placeholder || '';
+    field.value = defaultValue || '';
+    modal.classList.add('show');
+
+    setTimeout(() => field.focus(), 100);
+
+    const confirmBtn = document.getElementById('inputConfirm');
+    const cancelBtn = document.getElementById('inputCancel');
+    const newConfirm = confirmBtn.cloneNode(true);
+    const newCancel = cancelBtn.cloneNode(true);
+    confirmBtn.replaceWith(newConfirm);
+    cancelBtn.replaceWith(newCancel);
+
+    newConfirm.onclick = () => {
+      modal.classList.remove('show');
+      resolve(field.value.trim());
+    };
+    newCancel.onclick = () => {
+      modal.classList.remove('show');
+      resolve(null);
+    };
+  });
+}
+
+/* ---------- 应用名称 ---------- */
+async function loadAppName() {
+  const saved = await localforage.getItem('appName');
+  if (saved) appName = saved;
+  applyAppName();
+}
+
+function applyAppName() {
+  document.getElementById('appTitle').textContent = appName;
+  document.title = appName;
+}
+
+async function renameApp() {
+  const newName = await showInput('修改应用名称', '请输入新的名称', appName);
+  if (!newName) return;
+  appName = newName;
+  applyAppName();
+  await localforage.setItem('appName', appName);
+  alert('✅ 已修改首页显示名称');
 }
 
 /* ---------- 字体大小 ---------- */
@@ -55,14 +111,31 @@ function applyFontScale() {
 async function changeFontScale(delta) {
   const idx = FONT_STEPS.findIndex(s => s.scale === fontScale);
   let newIdx;
-  if (idx === -1) {
-    newIdx = delta > 0 ? 3 : 2;
-  } else {
-    newIdx = Math.max(0, Math.min(FONT_STEPS.length - 1, idx + delta));
-  }
+  if (idx === -1) newIdx = delta > 0 ? 3 : 2;
+  else newIdx = Math.max(0, Math.min(FONT_STEPS.length - 1, idx + delta));
   fontScale = FONT_STEPS[newIdx].scale;
   applyFontScale();
   await localforage.setItem('fontScale', fontScale);
+}
+
+/* ---------- 工具 ---------- */
+function getAvatarColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitial(name) {
+  if (!name) return '?';
+  const first = name.trim().charAt(0);
+  return /[a-zA-Z]/.test(first) ? first.toUpperCase() : first;
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /* ---------- 管理员 ---------- */
@@ -77,7 +150,7 @@ function verifyAdminPassword() {
     isAdmin = true;
     document.getElementById('lockIcon').textContent = '🔓';
     document.getElementById('adminModal').classList.remove('show');
-    document.getElementById('addBtn').style.display = 'block';
+    document.getElementById('addBtn').style.display = 'flex';
     document.getElementById('addCodeBtn').style.display = 'block';
     renderBrands();
     renderContentArea();
@@ -117,21 +190,38 @@ function renderBrands(filter = '') {
     .filter(b => !filter || b.name.includes(filter) ||
       b.codes.some(c => c.code.includes(filter) || c.definition.includes(filter)))
     .sort((a, b) => a.name.localeCompare(b.name, 'zh', { numeric: true, sensitivity: 'base' }));
+
   if (brands.length === 0) {
-    container.innerHTML = '<p style="text-align:center;color:#999;padding:30px;">暂无品牌，' +
-      (isAdmin ? '点击右下角 + 添加' : '点击右上角锁图标解锁编辑') + '</p>';
+    container.innerHTML = `
+      <div class="empty-state">
+        <span class="emoji-big">🏢</span>
+        <p>${isAdmin ? '还没有品牌<br>点击右下角 + 添加' : '还没有品牌<br>点击右上角 🔒 解锁编辑'}</p>
+      </div>`;
     return;
   }
-  container.innerHTML = brands.map(b => `
-    <div class="brand-item" data-id="${b.id}">
-      <span>${b.name} <small style="color:#999;">(${b.codes.length}个故障码)</small></span>
-      <div class="item-actions">
-        ${isAdmin ? `<button class="btn-edit" onclick="event.stopPropagation(); editBrand('${b.id}')">✏️</button>
-                     <button class="btn-delete" onclick="event.stopPropagation(); deleteBrand('${b.id}')">🗑️</button>` : ''}
-        <span class="arrow">›</span>
-      </div>
-    </div>
-  `).join('');
+
+  container.innerHTML = brands.map(b => {
+    const color = getAvatarColor(b.name);
+    const initial = escapeHtml(getInitial(b.name));
+    return `
+      <div class="brand-item" data-id="${b.id}">
+        <div class="item-left">
+          <div class="avatar" style="background:${color};">${initial}</div>
+          <div class="item-text">
+            <div class="item-title">${escapeHtml(b.name)}</div>
+            <div class="item-sub">共 ${b.codes.length} 个故障码</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <div class="item-actions">
+            ${isAdmin ? `<button class="btn-edit" onclick="event.stopPropagation(); editBrand('${b.id}')">✏️</button>
+                         <button class="btn-delete" onclick="event.stopPropagation(); deleteBrand('${b.id}')">🗑️</button>` : ''}
+          </div>
+          <span class="arrow">›</span>
+        </div>
+      </div>`;
+  }).join('');
+
   container.querySelectorAll('.brand-item').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.item-actions')) return;
@@ -155,27 +245,44 @@ function switchTab(tab) {
   renderContentArea();
 }
 
-/* ---------- 收藏/经验/调试 列表 ---------- */
+/* ---------- 收藏/经验/调试 ---------- */
 function renderContentArea() {
   const area = document.getElementById('contentArea');
   if (currentTab === 'brands') { area.innerHTML = ''; return; }
   const keyMap = { favorites: 'favorites', experience: 'experiences', debug: 'debug' };
   const key = keyMap[currentTab];
+  const emojiMap = { favorites: '⭐', experiences: '📝', debug: '🔧' };
+  const emptyTextMap = { favorites: '暂无收藏', experiences: '暂无经验', debug: '暂无调试资料' };
+
   const items = (window.appData[key] || []).sort((a, b) =>
     a.title.localeCompare(b.title, 'zh', { numeric: true, sensitivity: 'base' }));
+
   if (items.length === 0) {
-    area.innerHTML = `<p style="text-align:center;color:#999;padding:30px;">暂无内容</p>`;
+    area.innerHTML = `
+      <div class="empty-state">
+        <span class="emoji-big">${emojiMap[key]}</span>
+        <p>${emptyTextMap[key]}<br>${isAdmin ? '点击右下角 + 添加' : '点击右上角 🔒 解锁编辑'}</p>
+      </div>`;
     return;
   }
+
   area.innerHTML = items.map(item => `
     <div class="brand-item" data-id="${item.id}">
-      <span>${item.title}</span>
-      <div class="item-actions">
-        ${isAdmin ? `<button class="btn-delete" onclick="event.stopPropagation(); deleteContent('${key}','${item.id}')">🗑️</button>` : ''}
+      <div class="item-left">
+        <div class="avatar emoji">${emojiMap[key]}</div>
+        <div class="item-text">
+          <div class="item-title">${escapeHtml(item.title)}</div>
+          <div class="item-sub">${escapeHtml((item.content || '').slice(0, 20))}${(item.content || '').length > 20 ? '...' : ''}</div>
+        </div>
+      </div>
+      <div class="item-right">
+        <div class="item-actions">
+          ${isAdmin ? `<button class="btn-delete" onclick="event.stopPropagation(); deleteContent('${key}','${item.id}')">🗑️</button>` : ''}
+        </div>
         <span class="arrow">›</span>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
+
   area.querySelectorAll('.brand-item').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.item-actions')) return;
@@ -184,20 +291,19 @@ function renderContentArea() {
   });
 }
 
-function openContentDetail(key, id) {
+async function openContentDetail(key, id) {
   const item = window.appData[key].find(i => i.id === id);
   if (!item) return;
-
   document.getElementById('contentTitle').textContent = item.title;
   document.getElementById('contentBody').textContent = item.content || '（无内容）';
 
   const editBtn = document.getElementById('contentEditBtn');
   if (isAdmin) {
     editBtn.style.display = 'block';
-    editBtn.onclick = () => {
-      const newTitle = prompt('修改标题：', item.title);
-      if (newTitle === null) return;
-      const newContent = prompt('修改内容：', item.content);
+    editBtn.onclick = async () => {
+      const newTitle = await showInput('修改标题', '标题', item.title);
+      if (newTitle === null || !newTitle) return;
+      const newContent = await showInput('修改内容', '内容', item.content);
       if (newContent === null) return;
       item.title = newTitle;
       item.content = newContent;
@@ -208,7 +314,6 @@ function openContentDetail(key, id) {
   } else {
     editBtn.style.display = 'none';
   }
-
   document.getElementById('contentModal').classList.add('show');
 }
 
@@ -223,7 +328,8 @@ function openBrand(id) {
   document.getElementById('brandDetail').style.display = 'block';
   document.getElementById('detailBrandName').textContent = brand.name;
   document.getElementById('addCodeBtn').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('codeSearchInput').value = '';
+  const si = document.getElementById('codeSearchInput');
+  if (si) si.value = '';
   renderCodeList();
 }
 
@@ -255,14 +361,12 @@ function renderCodeList(filter = '') {
       <div class="empty-state">
         <span class="emoji-big">${filter ? '🔍' : '📋'}</span>
         <p>${filter ? '未找到匹配的故障码' : '暂无故障码' + (isAdmin ? '<br>点击右上角 + 添加' : '')}</p>
-      </div>
-    `;
+      </div>`;
     return;
   }
 
   const sorted = [...codes].sort((a, b) =>
-    a.code.localeCompare(b.code, 'zh', { numeric: true, sensitivity: 'base' })
-  );
+    a.code.localeCompare(b.code, 'zh', { numeric: true, sensitivity: 'base' }));
 
   container.innerHTML = sorted.map(c => `
     <div class="code-card">
@@ -276,32 +380,35 @@ function renderCodeList(filter = '') {
         <button class="btn-edit" onclick="editCode('${c.id}')">✏️</button>
         <button class="btn-delete" onclick="deleteCode('${c.id}')">🗑️</button>
       </div>` : ''}
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
-function addCode() {
+async function addCode() {
   const brand = window.appData.brands.find(b => b.id === currentBrandId);
   if (!brand) return;
-  const code = prompt('请输入故障码（如 E01）：');
+  const code = await showInput('添加故障码', '请输入故障码（如 E01）');
   if (!code) return;
-  const definition = prompt('请输入故障定义：') || '';
-  brand.codes.push({ id: Date.now().toString(), code, definition });
-  saveData();
+  const definition = await showInput('添加故障定义', '请输入故障含义') || '';
+  brand.codes.push({
+    id: Date.now().toString(),
+    code: code,
+    definition: definition
+  });
+  await saveData();
   renderCodeList();
 }
 
-function editCode(codeId) {
+async function editCode(codeId) {
   const brand = window.appData.brands.find(b => b.id === currentBrandId);
   const c = brand.codes.find(x => x.id === codeId);
   if (!c) return;
-  const newCode = prompt('修改故障码：', c.code);
-  if (newCode === null) return;
-  const newDef = prompt('修改故障定义：', c.definition);
+  const newCode = await showInput('修改故障码', '故障码', c.code);
+  if (newCode === null || !newCode) return;
+  const newDef = await showInput('修改故障定义', '故障含义', c.definition);
   if (newDef === null) return;
   c.code = newCode;
   c.definition = newDef;
-  saveData();
+  await saveData();
   renderCodeList();
 }
 
@@ -330,23 +437,22 @@ function deleteContent(key, id) {
   });
 }
 
-function addBrand() {
-  const name = prompt('请输入品牌名称：');
+async function addBrand() {
+  const name = await showInput('添加品牌', '请输入品牌名称');
   if (!name) return;
-  window.appData.brands.push({ id: Date.now().toString(), name, codes: [] });
-  saveData();
+  window.appData.brands.push({ id: Date.now().toString(), name: name, codes: [] });
+  await saveData();
   renderBrands();
 }
 
-function editBrand(id) {
+async function editBrand(id) {
   const brand = window.appData.brands.find(b => b.id === id);
   if (!brand) return;
-  const newName = prompt('修改品牌名称：', brand.name);
-  if (newName && newName !== brand.name) {
-    brand.name = newName;
-    saveData();
-    renderBrands();
-  }
+  const newName = await showInput('修改品牌名称', '品牌名称', brand.name);
+  if (!newName || newName === brand.name) return;
+  brand.name = newName;
+  await saveData();
+  renderBrands();
 }
 
 /* ---------- 设置页 ---------- */
@@ -386,21 +492,17 @@ async function exportExcel() {
   XLSX.utils.book_append_sheet(wb, ws, '电梯维修数据');
 
   const date = new Date().toISOString().slice(0, 10);
-  const fileName = `电梯维修助手_${date}.xlsx`;
+  const fileName = `${appName}_${date}.xlsx`;
 
   try {
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
       const result = await window.Capacitor.Plugins.Filesystem.writeFile({
-        path: fileName,
-        data: wbout,
-        directory: 'CACHE'
+        path: fileName, data: wbout, directory: 'CACHE'
       });
-
       if (window.Capacitor.Plugins.Share) {
         await window.Capacitor.Plugins.Share.share({
-          title: '电梯维修助手 - 数据导出',
+          title: appName + ' - 数据导出',
           text: '数据备份文件',
           files: [result.uri]
         });
@@ -428,11 +530,7 @@ function importExcel(file) {
       const beforeBrands = window.appData.brands.length;
       const beforeCodes = window.appData.brands.reduce((s, b) => s + b.codes.length, 0);
 
-      let addedBrands = 0;
-      let addedCodes = 0;
-      let updatedCodes = 0;
-      let addedItems = 0;
-      let updatedItems = 0;
+      let addedBrands = 0, addedCodes = 0, updatedCodes = 0, addedItems = 0, updatedItems = 0;
 
       rows.forEach(row => {
         const type = (row['类型'] || '').toString().trim();
@@ -456,11 +554,7 @@ function importExcel(file) {
                 updatedCodes++;
               }
             } else {
-              brand.codes.push({
-                id: Date.now().toString() + Math.random(),
-                code,
-                definition
-              });
+              brand.codes.push({ id: Date.now().toString() + Math.random(), code, definition });
               addedCodes++;
             }
           }
@@ -475,8 +569,7 @@ function importExcel(file) {
           } else {
             window.appData[type].push({
               id: Date.now().toString() + Math.random(),
-              title: bName,
-              content: definition
+              title: bName, content: definition
             });
             addedItems++;
           }
@@ -519,10 +612,8 @@ function bindEvents() {
 
   document.getElementById('settingsIcon').addEventListener('click', openSettings);
   document.getElementById('settingsBack').onclick = closeSettings;
-    document.getElementById('codeSearchInput').addEventListener('input', (e) => {
-    renderCodeList(e.target.value.trim());
-  });
 
+  document.getElementById('renameBtn').onclick = renameApp;
   document.getElementById('fontMinus').onclick = () => changeFontScale(-1);
   document.getElementById('fontPlus').onclick = () => changeFontScale(1);
 
@@ -545,15 +636,15 @@ function bindEvents() {
   document.getElementById('contentClose').onclick = () =>
     document.getElementById('contentModal').classList.remove('show');
 
-  document.getElementById('addBtn').onclick = () => {
+  document.getElementById('addBtn').onclick = async () => {
     if (currentTab === 'brands') addBrand();
     else {
-      const title = prompt('请输入标题：');
+      const title = await showInput('添加标题', '请输入标题');
       if (!title) return;
-      const content = prompt('请输入内容：') || '';
+      const content = await showInput('添加内容', '请输入内容') || '';
       const keyMap = { favorites: 'favorites', experience: 'experiences', debug: 'debug' };
       window.appData[keyMap[currentTab]].push({
-        id: Date.now().toString(), title, content
+        id: Date.now().toString(), title: title, content: content
       });
       saveData();
       renderContentArea();
@@ -562,6 +653,13 @@ function bindEvents() {
 
   document.getElementById('backBtn').onclick = closeBrand;
   document.getElementById('addCodeBtn').onclick = addCode;
+
+  const codeSearchInput = document.getElementById('codeSearchInput');
+  if (codeSearchInput) {
+    codeSearchInput.addEventListener('input', (e) => {
+      renderCodeList(e.target.value.trim());
+    });
+  }
 
   document.querySelectorAll('.bottom-nav button').forEach(btn => {
     btn.onclick = () => switchTab(btn.dataset.tab);
