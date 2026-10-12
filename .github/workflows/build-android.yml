@@ -12,12 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
-          # 注意：这里去掉了 cache: 'gradle'，因为此时还没有 Android 目录
+          java-version: '17'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -33,20 +32,34 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync
 
-      # 关键步骤：将Gradle下载源替换为国内镜像
-      - name: Change Gradle distribution URL to mirror
+      - name: Configure Gradle and Maven mirrors
         run: |
           cd android
-          cp gradle/wrapper/gradle-wrapper.properties gradle/wrapper/gradle-wrapper.properties.bak
+          # 1. Gradle 下载镜像（腾讯云）
           sed -i 's#https\://services.gradle.org/distributions/#https\://mirrors.cloud.tencent.com/gradle/#g' gradle/wrapper/gradle-wrapper.properties
           cat gradle/wrapper/gradle-wrapper.properties
+
+          # 2. Maven 依赖镜像（阿里云），追加到 settings.gradle
+          cat >> settings.gradle << 'EOF'
+
+          // 阿里云 Maven 镜像加速
+          allprojects {
+              repositories {
+                  maven { url 'https://maven.aliyun.com/repository/public' }
+                  maven { url 'https://maven.aliyun.com/repository/google' }
+                  maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
         working-directory: ./android
 
       - name: Build APK (debug)
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
         working-directory: ./android
 
       - name: Upload APK
