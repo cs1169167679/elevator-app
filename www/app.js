@@ -223,6 +223,7 @@ function openBrand(id) {
   document.getElementById('brandDetail').style.display = 'block';
   document.getElementById('detailBrandName').textContent = brand.name;
   document.getElementById('addCodeBtn').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('codeSearchInput').value = '';
   renderCodeList();
 }
 
