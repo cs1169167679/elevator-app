@@ -10,7 +10,7 @@
 
   <div id="mainPage">
     <header id="appHeader">
-      <h1>电梯维修助手</h1>
+      <h1 id="appTitle">电梯维修助手</h1>
       <div class="header-icons">
         <span id="settingsIcon">⚙️</span>
         <span id="lockIcon">🔒</span>
@@ -18,7 +18,7 @@
     </header>
 
     <div class="search-bar">
-      <input type="text" id="searchInput" placeholder="搜索品牌或故障码...">
+      <input type="text" id="searchInput" placeholder="🔍 搜索品牌或故障码...">
     </div>
 
     <section id="brandList" class="section"></section>
@@ -27,7 +27,7 @@
     <button id="addBtn" class="fab" style="display:none;">+</button>
   </div>
 
-   <div id="brandDetail" style="display:none;">
+  <div id="brandDetail" style="display:none;">
     <div class="detail-header">
       <button id="backBtn">← 返回</button>
       <h2 id="detailBrandName"></h2>
@@ -48,6 +48,12 @@
 
     <div class="settings-body">
       <div class="setting-card">
+        <div class="setting-title">应用名称</div>
+        <button class="setting-btn" id="renameBtn">📝 修改首页显示名称</button>
+        <p class="setting-tip">提示：这里修改的是 App 内部显示的名称。桌面图标下的名字需要重新构建 APK 才能更改。</p>
+      </div>
+
+      <div class="setting-card">
         <div class="setting-title">字体大小</div>
         <div class="font-control">
           <button id="fontMinus">A-</button>
@@ -59,18 +65,27 @@
       <div class="setting-card">
         <div class="setting-title">数据备份与恢复</div>
         <button class="setting-btn" id="exportBtn">📤 导出全部数据到 Excel</button>
-        <button class="setting-btn" id="importBtn">📥 从 Excel 导入数据</button>
+        <button class="setting-btn" id="importBtn">📥 从 Excel 导入数据（合并）</button>
         <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
-        <p class="setting-tip">提示：导入会覆盖当前所有数据，建议先导出备份。</p>
+        <p class="setting-tip">提示：导入会与现有数据合并，同品牌同故障码以新文件为准，不会覆盖其他数据。</p>
+      </div>
+
+      <div class="setting-card">
+        <div class="setting-title">关于</div>
+        <p class="setting-tip" style="margin-top:0;">
+          管理员密码：101111<br>
+          删除密码：8888<br>
+          数据保存在本机，不上传服务器。
+        </p>
       </div>
     </div>
   </div>
 
   <nav class="bottom-nav" id="bottomNav">
-    <button data-tab="brands" class="active">品牌</button>
-    <button data-tab="favorites">⭐收藏</button>
-    <button data-tab="experience">📝经验</button>
-    <button data-tab="debug">🔧调试</button>
+    <button data-tab="brands" class="active">🏢 品牌</button>
+    <button data-tab="favorites">⭐ 收藏</button>
+    <button data-tab="experience">📝 经验</button>
+    <button data-tab="debug">🔧 调试</button>
   </nav>
 
   <div id="adminModal" class="modal">
@@ -96,9 +111,6 @@
     </div>
   </div>
 
-  <script src="libs/localforage.min.js"></script>
-  <script src="libs/xlsx.full.min.js"></script>
-  <script src="app.js"></script>
   <div id="contentModal" class="modal">
     <div class="modal-content">
       <h3 id="contentTitle"></h3>
@@ -109,7 +121,8 @@
       </div>
     </div>
   </div>
-    <div id="inputModal" class="modal">
+
+  <div id="inputModal" class="modal">
     <div class="modal-content">
       <h3 id="inputTitle">请输入</h3>
       <input type="text" id="inputField" placeholder="" style="letter-spacing:0; text-align:left;">
@@ -119,5 +132,9 @@
       </div>
     </div>
   </div>
+
+  <script src="libs/localforage.min.js"></script>
+  <script src="libs/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
