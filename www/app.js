@@ -519,6 +519,9 @@ function bindEvents() {
 
   document.getElementById('settingsIcon').addEventListener('click', openSettings);
   document.getElementById('settingsBack').onclick = closeSettings;
+    document.getElementById('codeSearchInput').addEventListener('input', (e) => {
+    renderCodeList(e.target.value.trim());
+  });
 
   document.getElementById('fontMinus').onclick = () => changeFontScale(-1);
   document.getElementById('fontPlus').onclick = () => changeFontScale(1);
