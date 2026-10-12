@@ -235,22 +235,41 @@ function closeBrand() {
   renderContentArea();
 }
 
-function renderCodeList() {
+function renderCodeList(filter = '') {
   const brand = window.appData.brands.find(b => b.id === currentBrandId);
   if (!brand) return;
   const container = document.getElementById('codeList');
-  if (brand.codes.length === 0) {
-    container.innerHTML = `<p style="text-align:center;color:#999;padding:30px;">暂无故障码${isAdmin ? '，点击右上角添加' : ''}</p>`;
+
+  let codes = brand.codes;
+  if (filter) {
+    const f = filter.toLowerCase();
+    codes = codes.filter(c =>
+      (c.code || '').toLowerCase().includes(f) ||
+      (c.definition || '').toLowerCase().includes(f)
+    );
+  }
+
+  if (codes.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <span class="emoji-big">${filter ? '🔍' : '📋'}</span>
+        <p>${filter ? '未找到匹配的故障码' : '暂无故障码' + (isAdmin ? '<br>点击右上角 + 添加' : '')}</p>
+      </div>
+    `;
     return;
   }
-  const sorted = [...brand.codes].sort((a, b) =>
+
+  const sorted = [...codes].sort((a, b) =>
     a.code.localeCompare(b.code, 'zh', { numeric: true, sensitivity: 'base' })
   );
+
   container.innerHTML = sorted.map(c => `
-    <div class="brand-item">
-      <div>
-        <span style="font-weight:600;color:#d93025;">${c.code}</span>
-        <p style="font-size:0.875rem;color:#555;margin-top:4px;">${c.definition}</p>
+    <div class="code-card">
+      <div class="code-left">
+        <div class="code-badge">${escapeHtml(c.code)}</div>
+        <div class="code-text">
+          <div class="code-def">${escapeHtml(c.definition || '（无定义）')}</div>
+        </div>
       </div>
       ${isAdmin ? `<div class="item-actions">
         <button class="btn-edit" onclick="editCode('${c.id}')">✏️</button>
